@@ -1,34 +1,55 @@
+// Load model and class mapping
 let model;
-let classNames;
+let classMap = {};
 
-// Load model on page load
-window.onload = async function () {
-    model = await tf.loadLayersModel("web_model/model.json");
-    const res = await fetch("class_mapping.json");
-    classNames = await res.json();
-};
+async function loadModel() {
+    try {
+        model = await tf.loadLayersModel("web_model/model.json");
 
-document.getElementById("imageUpload").addEventListener("change", async function (event) {
-    const file = event.target.files[0];
-    if (!file || !model) return;
+        const response = await fetch("class_mapping.json");
+        classMap = await response.json();
 
-    const img = document.getElementById("uploadedImage");
-    img.src = URL.createObjectURL(file);
+        console.log("Model and class map loaded!");
+    } catch (err) {
+        console.error("Error loading model:", err);
+    }
+}
 
-    await img.onload;
+loadModel();
 
-    const tensor = tf.browser.fromPixels(img)
-        .resizeNearestNeighbor([64, 64])
+// Handle image upload
+const imageUpload = document.getElementById("imageUpload");
+const preview = document.getElementById("preview");
+const result = document.getElementById("result");
+const confidence = document.getElementById("confidence");
+
+imageUpload.addEventListener("change", async function () {
+    const file = imageUpload.files[0];
+    if (!file) return;
+
+    // Display preview
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = "block";
+
+    // Wait for preview to load
+    await new Promise((res) => (preview.onload = res));
+
+    // Convert image to tensor
+    let tensor = tf.browser.fromPixels(preview)
+        .resizeNearestNeighbor([224, 224])
         .toFloat()
         .div(255.0)
-        .expandDims(0);
+        .expandDims();
 
+    // Run prediction
     const prediction = model.predict(tensor);
-    const values = await prediction.data();
+    const scores = prediction.dataSync();
 
-    const classIndex = values.indexOf(Math.max(...values));
+    const predictedIndex = scores.indexOf(Math.max(...scores));
+    const plantName = classMap[predictedIndex] || "Unknown Plant";
+    const conf = (Math.max(...scores) * 100).toFixed(2);
 
-    const plantName = classNames[classIndex.toString()];
-
-    alert("Predicted Plant: " + plantName);
+    // Display output
+    result.textContent = `🌿 Predicted Plant: ${plantName}`;
+    confidence.textContent = `Confidence: ${conf}%`;
 });
