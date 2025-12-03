@@ -1,42 +1,34 @@
 let model;
-let classMap = {};
+let classNames;
 
-async function loadModel() {
+// Load model on page load
+window.onload = async function () {
     model = await tf.loadLayersModel("web_model/model.json");
+    const res = await fetch("class_mapping.json");
+    classNames = await res.json();
+};
 
-    const response = await fetch("class_mapping.json");
-    classMap = await response.json();
+document.getElementById("imageUpload").addEventListener("change", async function (event) {
+    const file = event.target.files[0];
+    if (!file || !model) return;
 
-    console.log("Model loaded.");
-}
-
-loadModel();
-
-document.getElementById("imageUpload").addEventListener("change", async function () {
-    const file = this.files[0];
-    const img = document.getElementById("preview");
+    const img = document.getElementById("uploadedImage");
     img.src = URL.createObjectURL(file);
-    img.style.display = "block";
 
-    await predictImage(img);
-});
+    await img.onload;
 
-async function predictImage(img) {
-    // Resize + normalize
-    let tensor = tf.browser.fromPixels(img)
-        .resizeNearestNeighbor([180, 180])
+    const tensor = tf.browser.fromPixels(img)
+        .resizeNearestNeighbor([64, 64])
         .toFloat()
         .div(255.0)
-        .expandDims();
+        .expandDims(0);
 
     const prediction = model.predict(tensor);
-    const probs = await prediction.data();
+    const values = await prediction.data();
 
-    const topIndex = probs.indexOf(Math.max(...probs));
-    const plantName = classMap[topIndex] || "Unknown plant";
-    const confidence = Math.max(...probs);
+    const classIndex = values.indexOf(Math.max(...values));
 
-    document.getElementById("result").innerText = "🌱 Plant: " + plantName;
-    document.getElementById("confidence").innerText = 
-        "Confidence: " + (confidence * 100).toFixed(2) + "%";
-}
+    const plantName = classNames[classIndex.toString()];
+
+    alert("Predicted Plant: " + plantName);
+});
