@@ -1,0 +1,15 @@
+body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    padding: 20px;
+    background: #eef7f0;
+}
+
+h1 {
+    color: #2c6e49;
+}
+
+#preview {
+    margin-top: 20px;
+    border-radius: 10px;
+}
